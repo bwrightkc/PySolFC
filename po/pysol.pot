@@ -4442,9 +4442,6 @@ msgstr ""
 msgid "Small"
 msgstr ""
 
-msgid "Medium"
-msgstr ""
-
 msgid "Large"
 msgstr ""
 
