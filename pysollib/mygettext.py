@@ -66,9 +66,6 @@ ungettext = gettext.ungettext
 
 
 def pgettext(context, message):
-    # Manual version of gettext.pgettext() (stdlib only has it on 3.8+).
-    # "\x04" is the standard gettext context separator used to compile
-    # msgctxt entries into the .mo catalog.
     key = "%s\x04%s" % (context, message)
     translated = _(key)
     return message if translated == key else translated
