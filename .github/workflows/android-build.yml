@@ -1,0 +1,79 @@
+name: Android APK (manual)
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.11'
+        cache: pip
+        cache-dependency-path: buildozer/pipreq.txt
+
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '17'
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          git zip unzip \
+          autoconf automake libtool pkg-config \
+          zlib1g-dev libncurses-dev cmake \
+          libffi-dev libssl-dev \
+          build-essential ccache \
+          gettext imagemagick \
+          python3-tk wget
+
+    - name: Install buildozer and Python requirements
+      run: |
+        python3 -m pip install --upgrade pip
+        pip install -r buildozer/pipreq.txt
+
+    # python-for-android downloads its own Android SDK/NDK into
+    # buildozer/.buildozer on first run; this is by far the slowest
+    # part of the job, so cache it across manual re-runs.
+    - name: Cache buildozer Android SDK/NDK/build state
+      uses: actions/cache@v4
+      with:
+        path: buildozer/.buildozer
+        key: android-buildozer-${{ hashFiles('buildozer/buildozer.spec', 'buildozer/pipreq.txt') }}
+        restore-keys: |
+          android-buildozer-
+
+    # mkcards clones shlomif/PySolFC-Cardsets and converts gif->png;
+    # skipped automatically if buildozer/PySolFC-Cardsets already exists.
+    - name: Cache converted cardsets
+      uses: actions/cache@v4
+      with:
+        path: buildozer/PySolFC-Cardsets
+        key: android-cardsets-${{ hashFiles('buildozer/mkcards', 'buildozer/minimal.txt') }}
+
+    - name: Prepare source tree (rules, translations, cardsets, version)
+      working-directory: buildozer
+      run: ./buildozer.init
+
+    - name: Build debug APK
+      working-directory: buildozer
+      run: yes | ./buildozer.run
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v7
+      with:
+        name: pysolfc-debug-apk
+        path: buildozer/bin/*.apk
+        if-no-files-found: error
