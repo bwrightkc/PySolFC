@@ -132,7 +132,7 @@ android.ndk = 28c
 # (bool) If True, then skip trying to update the Android sdk
 # This can be useful to avoid excess Internet downloads or save time
 # when an update is due and you just want to test/build your package
-# android.skip_update = False
+android.skip_update = True
 
 # (bool) If True, then automatically accept SDK license
 # agreements. This is intended for automation only. If set to False,
@@ -321,7 +321,7 @@ p4a.commit = c63d8e2a91ce7180811a37eae489f772fb766a9d
 #p4a.source_dir = /home/lb/SourcePackages/python-for-android/python-for-android
 
 # (str) The directory in which python-for-android should look for your own build recipes (if any)
-#p4a.local_recipes =
+p4a.local_recipes = ./p4a-recipes
 
 # (str) Filename to the hook for p4a
 #p4a.hook =

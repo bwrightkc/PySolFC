@@ -1,0 +1,22 @@
+--- a/Modules/grpmodule.c
++++ b/Modules/grpmodule.c
+@@ -4,7 +4,19 @@
+ #include "Python.h"
+ #include "posixmodule.h"
+ 
+ #include <grp.h>
++
++#ifdef __ANDROID__
++/* NDK r28c's <grp.h> stopped declaring these even though bionic still
++ * exports them (CPython's own configure already confirmed they link,
++ * which is why this module gets built at all here). Restore the
++ * declarations so -Werror=implicit-function-declaration doesn't turn
++ * that into a hard build failure.
++ */
++extern void setgrent(void);
++extern struct group *getgrent(void);
++extern void endgrent(void);
++#endif
+ 
+ #include "clinic/grpmodule.c.h"
+ /*[clinic input]

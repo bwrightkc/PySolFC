@@ -44,10 +44,20 @@ jobs:
         python3 -m pip install --upgrade pip
         pip install -r buildozer/pipreq.txt
 
-    # python-for-android downloads its own Android SDK/NDK into
-    # buildozer/.buildozer on first run; this is by far the slowest
-    # part of the job, so cache it across manual re-runs.
-    - name: Cache buildozer Android SDK/NDK/build state
+    # The Android SDK/NDK download into the global ~/.buildozer (shared,
+    # not project-specific); the per-app recipe build state (compiled
+    # CPython, kivy, etc. for this app's requirements) goes into the
+    # project-local buildozer/.buildozer. Both are slow to rebuild from
+    # scratch, so cache both across manual re-runs.
+    - name: Cache global Android SDK/NDK
+      uses: actions/cache@v4
+      with:
+        path: ~/.buildozer
+        key: android-sdk-ndk-${{ hashFiles('buildozer/buildozer.spec') }}
+        restore-keys: |
+          android-sdk-ndk-
+
+    - name: Cache buildozer app build state
       uses: actions/cache@v4
       with:
         path: buildozer/.buildozer
@@ -69,12 +79,6 @@ jobs:
 
     - name: Build debug APK
       working-directory: buildozer
-      # NDK 28c's clang treats implicit function declarations as hard
-      # errors; the pinned python-for-android commit's CPython recipe
-      # (grpmodule.c: setgrent/getgrent/endgrent) predates that and
-      # fails to compile without this relaxed back to a warning.
-      env:
-        CFLAGS: -Wno-implicit-function-declaration
       run: yes | ./buildozer.run
 
     - name: Upload APK
