@@ -39,3 +39,5 @@ buildozer/ENV
 buildozer/VENV
 venv*
 local-comments
+/data
+/.venv-py2app
