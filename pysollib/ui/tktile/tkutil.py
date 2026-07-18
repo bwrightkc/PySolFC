@@ -67,6 +67,31 @@ def wm_get_geometry(window):
     return lst
 
 
+def restore_window_geometry(window, opt):
+    # Restore the main window's last known position/size (which monitor
+    # it was on is implicit in x/y, since those live in the multi-monitor
+    # desktop's combined coordinate space -- a secondary monitor placed
+    # left of/above the primary has negative x/y).
+    #
+    # No bounds-check against a disconnected monitor here: Tk's
+    # winfo_vroot* calls only report the *primary* screen's extent on
+    # macOS/Windows (not the true multi-monitor bounding box), so using
+    # them to reject "off-screen" positions produces false positives that
+    # discard perfectly valid secondary-monitor placements. The window
+    # managers on all three platforms already reposition orphaned
+    # windows back onto a remaining screen when a monitor is unplugged,
+    # so this doesn't need to be reimplemented here.
+    if opt.wm_maximized or opt.wm_fullscreen:
+        return
+    x, y, w, h = opt.window_geometry
+    if w <= 0 or h <= 0:
+        return
+    try:
+        window.wm_geometry("%dx%d+%d+%d" % (w, h, x, y))
+    except tkinter.TclError:
+        pass
+
+
 # ************************************************************************
 # * window util
 # ************************************************************************

@@ -502,6 +502,12 @@ class Application:
                 self.opt.wm_maximized = True
             elif s == "normal":
                 self.opt.wm_maximized = False
+            # save window position/size (only while in a plain, unzoomed,
+            # non-fullscreen state -- x/y/w/h are meaningless otherwise)
+            if s == "normal" and not self.opt.wm_fullscreen:
+                self.opt.window_geometry = (
+                    self.top.winfo_x(), self.top.winfo_y(),
+                    self.top.winfo_width(), self.top.winfo_height())
 
     def wm_withdraw(self):
         if self.intro.progress:

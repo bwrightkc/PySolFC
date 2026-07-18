@@ -912,6 +912,16 @@ class PysolMenubarTkCommon:
         # The tk-provided menu item expects this callback.
         self.top.createcommand('tk::mac::ShowHelp', self.mHelp)
 
+        # macOS: Cmd+Q sends this Apple Event straight to Tk, bypassing
+        # our own WM_DELETE_WINDOW handler entirely -- without this the
+        # app just dies mid-process and never saves options/stats. Defer
+        # via after_idle: mQuit can pop a modal "Discard current game?"
+        # dialog, and running that dialog's nested event loop synchronously
+        # inside the Apple Event callback hangs Tk/Aqua.
+        if WIN_SYSTEM == "aqua":
+            self.top.createcommand(
+                'tk::mac::Quit', lambda: self.top.after_idle(self.mQuit))
+
         menu = MfxMenu(self.menubar, label=n_("&Help"))
         if WIN_SYSTEM != "aqua":
             menu.add_command(
