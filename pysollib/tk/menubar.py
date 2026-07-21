@@ -94,6 +94,9 @@ class PysolMenubarTk(PysolMenubarTkCommon):
     def mSelectCardsetDialog(self, *event):
         if self._cancelDrag(break_pause=False):
             return
+        self.top.after_idle(self._mSelectCardsetDialog)
+
+    def _mSelectCardsetDialog(self):
         # strings, default = ("&OK", "&Load", "&Cancel"), 0
         strings, default = (None, _("&Load"), _("&Cancel"),), 1
         strings, default = (None, _("&Load"), _("&Cancel"), _("&Info..."),), 1
