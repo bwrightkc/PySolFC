@@ -1,0 +1,23 @@
+--- a/src/video/uikit/SDL_uikitvideo.m	2026-07-23 09:15:55
++++ b/src/video/uikit/SDL_uikitvideo.m	2026-07-23 11:51:32
+@@ -213,7 +213,19 @@
+      * https://bugzilla.libsdl.org/show_bug.cgi?id=3505
+      * https://bugzilla.libsdl.org/show_bug.cgi?id=3465
+      * https://forums.developer.apple.com/thread/65337 */
+-    UIInterfaceOrientation orient = [UIApplication sharedApplication].statusBarOrientation;
++    /* statusBarOrientation is a no-op returning a fixed value as of iOS 17+
++     * (fully removed on iOS 27), which made this workaround corrupt an
++     * already-correct landscape frame by swapping it back to portrait. Read
++     * orientation from the window's own scene instead, when available. */
++    UIInterfaceOrientation orient = UIInterfaceOrientationUnknown;
++    if (@available(iOS 13.0, *)) {
++        if (data != nil && data.uiwindow != nil && data.uiwindow.windowScene != nil) {
++            orient = data.uiwindow.windowScene.interfaceOrientation;
++        }
++    }
++    if (orient == UIInterfaceOrientationUnknown) {
++        orient = [UIApplication sharedApplication].statusBarOrientation;
++    }
+     BOOL landscape = UIInterfaceOrientationIsLandscape(orient) ||
+                     !(UIKit_GetSupportedOrientations(window) & (UIInterfaceOrientationMaskPortrait | UIInterfaceOrientationMaskPortraitUpsideDown));
+     BOOL fullscreen = CGRectEqualToRect(screen.bounds, frame);

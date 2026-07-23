@@ -34,9 +34,14 @@ patch_sdl2_uiscene() {
 	local recipe_dir="$KIVY_IOS_DIR/kivy_ios/recipes/sdl2"
 	local recipe="$recipe_dir/__init__.py"
 	cp patches/sdl2-uiscene-lifecycle.patch "$recipe_dir/"
+	cp patches/sdl2-ios27-orientation-fix.patch "$recipe_dir/"
 	if ! grep -q 'sdl2-uiscene-lifecycle.patch' "$recipe"; then
 		sed -i '' 's/self\.apply_patch("disable-hidapi\.patch")/self.apply_patch("disable-hidapi.patch")\
         self.apply_patch("sdl2-uiscene-lifecycle.patch")/' "$recipe"
+	fi
+	if ! grep -q 'sdl2-ios27-orientation-fix.patch' "$recipe"; then
+		sed -i '' 's/self\.apply_patch("sdl2-uiscene-lifecycle\.patch")/self.apply_patch("sdl2-uiscene-lifecycle.patch")\
+        self.apply_patch("sdl2-ios27-orientation-fix.patch")/' "$recipe"
 	fi
 }
 
@@ -88,6 +93,19 @@ patch_launch_screen_icon() {
 	fi
 }
 
+skip_unneeded_keychain_unlock() {
+	# build_package() unconditionally tries to interactively unlock the login
+	# keychain (for codesigning), even when ios.codesign.allowed = false and
+	# no signing will happen. In a non-interactive shell (no TTY, no unlocked
+	# GUI session) that crashes instead of just failing the unlock. Skip it
+	# entirely when signing isn't configured.
+	local ios_target
+	ios_target=$(python3 -c "import buildozer.targets.ios as m; print(m.__file__)")
+	if [ -f "$ios_target" ] && ! grep -q 'if self.code_signing_allowed' "$ios_target"; then
+		sed -i '' 's/        self\.\_unlock_keychain()/        if self.code_signing_allowed == "CODE_SIGNING_ALLOWED=YES":\n            self._unlock_keychain()/' "$ios_target"
+	fi
+}
+
 patch_ios_deploy() {
 	if [ -f "$IOS_DEPLOY_PBX" ] \
 		&& grep -q 'MACOSX_DEPLOYMENT_TARGET = 10\.\(8\|11\);' "$IOS_DEPLOY_PBX"
@@ -113,6 +131,7 @@ patch_sdl2_uiscene
 patch_scene_manifest_template
 patch_launch_screen_icon
 fix_icon_path_resolution
+skip_unneeded_keychain_unlock
 
 # Force a fresh Xcode project regeneration every run: buildozer only
 # reruns cookiecutter's 'create' step if the project dir is missing,
