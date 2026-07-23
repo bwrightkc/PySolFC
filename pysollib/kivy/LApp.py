@@ -62,7 +62,7 @@ from pysollib.kivy.androidrot import AndroidScreenRotation
 from pysollib.kivy.tkconst import EVENT_HANDLED, EVENT_PROPAGATE
 from pysollib.resource import CSI
 
-if platform != 'android':
+if platform not in ('android', 'ios'):
     Config.set('input', 'mouse', 'mouse,multitouch_on_demand')
 
 # =============================================================================

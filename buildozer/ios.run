@@ -1,0 +1,34 @@
+#!/bin/bash
+
+echo '### ios build'
+
+if [ -z "$DEVELOPER_DIR" ] && [ -d "/Applications/Xcode.app" ]; then
+	export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
+fi
+
+echo "### using Xcode at: ${DEVELOPER_DIR:-$(xcode-select -p)}"
+
+IOS_DEPLOY_PBX=".buildozer/ios/platform/ios-deploy/ios-deploy.xcodeproj/project.pbxproj"
+
+patch_ios_deploy() {
+	if [ -f "$IOS_DEPLOY_PBX" ] \
+		&& grep -q 'MACOSX_DEPLOYMENT_TARGET = 10\.\(8\|11\);' "$IOS_DEPLOY_PBX"
+	then
+		echo '### patching ios-deploy MACOSX_DEPLOYMENT_TARGET'
+		sed -i.bak -E 's/MACOSX_DEPLOYMENT_TARGET = 10\.(8|11);/MACOSX_DEPLOYMENT_TARGET = 12.0;/g' \
+			"$IOS_DEPLOY_PBX"
+	fi
+}
+
+run_build() {
+	if [ "$1" == "release" ]; then
+		buildozer ios release
+	else
+		buildozer ios debug
+	fi
+}
+
+echo '### run buildozer'
+run_build "$1" || { patch_ios_deploy; run_build "$1"; }
+
+echo '### end run'

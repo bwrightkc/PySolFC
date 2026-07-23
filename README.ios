@@ -1,0 +1,52 @@
+
+iOS build, via buildozer's 'ios' target (kivy-ios), sharing the same
+buildozer.spec and source staging as the Android build.
+
+Prerequisites:
+--------------
+
+  Mac + Xcode + Homebrew's autoconf, automake, libtool, pkg-config, git.
+
+  $ sudo xcodebuild -license
+  $ xcodebuild -downloadPlatform iOS
+  $ xcodebuild -downloadComponent MetalToolchain
+
+  Use a stable (non-beta) Xcode - some iOS betas hard-require UIScene
+  lifecycle adoption, which this app doesn't implement, and refuse to
+  launch it. ios.run auto-picks /Applications/Xcode.app if present;
+  override with DEVELOPER_DIR otherwise.
+
+Build:
+------
+
+  $ virtualenv --system-site-packages ENV
+  $ . ENV/bin/activate
+  $ pip install -r pipreq.txt
+  $ ./buildozer.init
+  $ ./ios.run
+
+  First run compiles the whole toolchain from scratch (slow); later runs
+  are cached under .buildozer/ios/. ios.run auto-patches one known
+  kivy-ios issue: ios-deploy's MACOSX_DEPLOYMENT_TARGET predates
+  libarclite removal in current Xcode, and fails without the patch.
+
+  Output: .buildozer/ios/platform/kivy-ios/pysolfc-ios/pysolfc.xcodeproj.
+  Unsigned by default (ios.codesign.allowed = false) - fine for Simulator
+  or local device testing. For a signed IPA, set ios.codesign.debug /
+  .development_team and ios.codesign.allowed = true in buildozer.spec.
+
+Simulator:
+----------
+
+  $ xcrun simctl install booted \
+      .buildozer/ios/platform/kivy-ios/pysolfc-ios/build/Debug-iphonesimulator/pysolfc.app
+  $ xcrun simctl launch --console booted org.lufebe16.pysolfc
+
+  --console shows Python/Kivy output; `log stream` doesn't capture it.
+
+Cardsets:
+---------
+
+  Same minimal set/PNG requirement as Android (see README.kivy). No
+  Files-app cardset import yet - Android's flow needs scoped storage
+  iOS doesn't have.

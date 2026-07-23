@@ -117,6 +117,8 @@ class DataLoader:
         # dir where placed pysol package
         path.append(os.path.join(sys.path[0], "data"))
         path.append(os.path.join(sys.path[0], "pysollib", "data"))
+        pysollib_dir = os.path.dirname(os.path.abspath(__file__))
+        path.append(os.path.join(pysollib_dir, os.pardir, "data"))
         # from settings.py
         path.extend(DATA_DIRS)
         # py2app compatibility, see
