@@ -22,13 +22,15 @@ patch_ios_deploy() {
 
 run_build() {
 	if [ "$1" == "release" ]; then
-		buildozer ios release
+		buildozer --verbose ios release
 	else
-		buildozer ios debug
+		buildozer --verbose ios debug
 	fi
 }
 
 echo '### run buildozer'
 run_build "$1" || { patch_ios_deploy; run_build "$1"; }
+status=$?
 
 echo '### end run'
+exit $status
