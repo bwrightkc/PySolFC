@@ -34,6 +34,11 @@ jobs:
         sudo installer -pkg python.pkg -target /
         echo "/Library/Frameworks/Python.framework/Versions/${PYVER_SHORT}/bin" >> $GITHUB_PATH
 
+    - name: Install pysollib's own runtime deps (needed by buildozer.init's rules/docs generation)
+      run: |
+        python3 -m pip install --upgrade pip
+        python3 -m pip install attrs configobj pysol-cards
+
     - name: Prepare staged app source (buildozer/tmp)
       working-directory: buildozer
       run: ./buildozer.init
