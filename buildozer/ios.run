@@ -8,7 +8,62 @@ fi
 
 echo "### using Xcode at: ${DEVELOPER_DIR:-$(xcode-select -p)}"
 
+KIVY_IOS_DIR=".buildozer/ios/platform/kivy-ios"
+KIVY_IOS_COMMIT="c14426b4f05d51774a0c8a45727a6ec27fba3b60"
+KIVY_PIN_VERSION="2.3.1"
 IOS_DEPLOY_PBX=".buildozer/ios/platform/ios-deploy/ios-deploy.xcodeproj/project.pbxproj"
+
+ensure_kivy_ios() {
+	if [ ! -f "$KIVY_IOS_DIR/toolchain.py" ]; then
+		echo '### cloning kivy-ios (pinned commit)'
+		mkdir -p .buildozer/ios/platform
+		git clone https://github.com/kivy/kivy-ios "$KIVY_IOS_DIR"
+		git -C "$KIVY_IOS_DIR" checkout "$KIVY_IOS_COMMIT"
+	fi
+}
+
+patch_kivy_version() {
+	local recipe="$KIVY_IOS_DIR/kivy_ios/recipes/kivy/__init__.py"
+	# kivy-ios master tracks Kivy's own master branch, which currently needs
+	# Python 3.13 (platform.ios_ver()) that kivy-ios's embedded iOS Python
+	# (3.11) doesn't have. Pin to a released SDL2-based Kivy version instead.
+	sed -i '' "s/version = \"master\"/version = \"$KIVY_PIN_VERSION\"/" "$recipe"
+}
+
+patch_sdl2_uiscene() {
+	local recipe_dir="$KIVY_IOS_DIR/kivy_ios/recipes/sdl2"
+	local recipe="$recipe_dir/__init__.py"
+	cp patches/sdl2-uiscene-lifecycle.patch "$recipe_dir/"
+	if ! grep -q 'sdl2-uiscene-lifecycle.patch' "$recipe"; then
+		sed -i '' 's/self\.apply_patch("disable-hidapi\.patch")/self.apply_patch("disable-hidapi.patch")\
+        self.apply_patch("sdl2-uiscene-lifecycle.patch")/' "$recipe"
+	fi
+}
+
+patch_scene_manifest_template() {
+	local plist="$KIVY_IOS_DIR/kivy_ios/tools/templates/{{ cookiecutter.project_name }}-ios/{{ cookiecutter.project_name }}-Info.plist"
+	if [ -f "$plist" ] && ! grep -q 'UIApplicationSceneManifest' "$plist"; then
+		python3 - "$plist" <<'PYEOF'
+import sys
+path = sys.argv[1]
+marker = "</dict>\n</plist>"
+addition = (
+    "\t<key>UIApplicationSceneManifest</key>\n"
+    "\t<dict>\n"
+    "\t\t<key>UIApplicationSupportsMultipleScenes</key>\n"
+    "\t\t<false/>\n"
+    "\t</dict>\n"
+    + marker
+)
+with open(path) as f:
+    content = f.read()
+assert marker in content, "Info.plist template shape changed unexpectedly"
+content = content.replace(marker, addition, 1)
+with open(path, "w") as f:
+    f.write(content)
+PYEOF
+	fi
+}
 
 patch_ios_deploy() {
 	if [ -f "$IOS_DEPLOY_PBX" ] \
@@ -27,6 +82,18 @@ run_build() {
 		buildozer --verbose ios debug
 	fi
 }
+
+echo '### prepare kivy-ios'
+ensure_kivy_ios
+patch_kivy_version
+patch_sdl2_uiscene
+patch_scene_manifest_template
+
+# Force a fresh Xcode project regeneration every run: buildozer only
+# reruns cookiecutter's 'create' step if the project dir is missing,
+# so template edits (like the scene manifest above) never reach an
+# already-generated project otherwise.
+rm -rf "$KIVY_IOS_DIR/pysolfc-ios"
 
 echo '### run buildozer'
 run_build "$1" || { patch_ios_deploy; run_build "$1"; }
