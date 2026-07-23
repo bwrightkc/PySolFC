@@ -1999,6 +1999,10 @@ class LApp(App):
         if app is None:
             return
 
+        if app.game.drag.stack is not None:
+            logging.info("LApp: on_pause - cancelling stuck drag")
+            app.game.drag.stack.cancelDrag()
+
         logging.info("LApp: on_pause - pause on")
         # set pause
         if not app.game.pause:

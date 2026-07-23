@@ -21,6 +21,8 @@
 #
 # ---------------------------------------------------------------------------
 
+import logging
+
 from pysollib.mfxutil import Image, ImageTk, USE_PIL
 from pysollib.mfxutil import Struct, SubclassResponsibility, kwdefault
 from pysollib.mygettext import _
@@ -1322,7 +1324,11 @@ class Stack:
     # begin a drag operation
     def startDrag(self, event, sound=True):
         # print event.x, event.y
-        assert self.game.drag.stack is None
+        if self.game.drag.stack is not None:
+            logging.warning(
+                "startDrag: recovering stuck drag from %r",
+                self.game.drag.stack)
+            self.game.drag.stack.cancelDrag(event)
         # import pdb
         # pdb.set_trace()
         i = self._findCard(event)
@@ -1624,6 +1630,8 @@ class Stack:
         if self.game.app.opt.dragcursor:
             self.canvas.config(cursor='')
         drag = self.game.drag.copy()
+        if drag.stack is None:
+            return
         if (self.game.app.opt.mouse_type == 'point-n-click'
                 or self.keyboard_movement):
             drag.stack._stopDrag()
@@ -1634,7 +1642,8 @@ class Stack:
                     or self.keyboard_movement):
                 self.releaseHandler(event, drag)
             else:
-                assert drag.stack is self
+                if drag.stack is not self:
+                    return
                 self.releaseHandler(event, drag)
         self.keyboard_movement = False
 
@@ -1643,6 +1652,8 @@ class Stack:
         if self.game.app.opt.dragcursor:
             self.canvas.config(cursor='')
         drag = self.game.drag.copy()
+        if drag.stack is None:
+            return
         if (self.game.app.opt.mouse_type == 'point-n-click'
                 or self.keyboard_movement):
             drag.stack._stopDrag()
@@ -1650,7 +1661,8 @@ class Stack:
         else:
             self._stopDrag()
         if drag.cards:
-            assert drag.stack is self
+            if drag.stack is not self:
+                return
             self.moveCardsBackHandler(event, drag)
         self.keyboard_movement = False
 
