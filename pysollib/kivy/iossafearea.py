@@ -35,6 +35,7 @@ class IosSafeArea:
             insets = window.safeAreaInsets()
             self.top = float(insets.top)
             self.bottom = float(insets.bottom)
-            logging.info('IosSafeArea: top=%s bottom=%s', self.top, self.bottom)
+            logging.info('IosSafeArea: top=%s bottom=%s',
+                         self.top, self.bottom)
         except Exception:
             logging.exception('IosSafeArea: failed to read safeAreaInsets')
