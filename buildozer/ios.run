@@ -65,6 +65,29 @@ PYEOF
 	fi
 }
 
+fix_icon_path_resolution() {
+	# buildozer's iOS target resolves icon.filename against app_dir
+	# (.buildozer/ios/app), but the config value ("%(source.dir)s/...")
+	# is written to resolve against the project root, matching how the
+	# Android target reads the very same key (join(root_dir, icon)).
+	# iOS icon generation has therefore never actually run. Patch the
+	# installed buildozer package directly, same as Android's convention.
+	local ios_target
+	ios_target=$(python3 -c "import buildozer.targets.ios as m; print(m.__file__)")
+	if [ -f "$ios_target" ] && ! grep -q 'self\.buildozer\.root_dir, icon)' "$ios_target"; then
+		sed -i '' 's/icon_fn = join(self\.buildozer\.app_dir, icon)/icon_fn = join(self.buildozer.root_dir, icon)/' "$ios_target"
+	fi
+}
+
+patch_launch_screen_icon() {
+	local template_dir="$KIVY_IOS_DIR/kivy_ios/tools/templates/{{ cookiecutter.project_name }}-ios"
+	# The launch screen storyboard displays this file by name; kivy-ios ships
+	# its own generic logo here by default, unrelated to icon.filename/xcassets.
+	if [ -f "$template_dir/icon.png" ]; then
+		cp ../data/images/icons/512x512/pysol.png "$template_dir/icon.png"
+	fi
+}
+
 patch_ios_deploy() {
 	if [ -f "$IOS_DEPLOY_PBX" ] \
 		&& grep -q 'MACOSX_DEPLOYMENT_TARGET = 10\.\(8\|11\);' "$IOS_DEPLOY_PBX"
@@ -88,6 +111,8 @@ ensure_kivy_ios
 patch_kivy_version
 patch_sdl2_uiscene
 patch_scene_manifest_template
+patch_launch_screen_icon
+fix_icon_path_resolution
 
 # Force a fresh Xcode project regeneration every run: buildozer only
 # reruns cookiecutter's 'create' step if the project dir is missing,

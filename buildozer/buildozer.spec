@@ -50,7 +50,7 @@ presplash.filename = %(source.dir)s/data/images/logo-with-margin-1024.png
 
 # (str) Icon of the application
 #icon.filename = %(source.dir)s/data/icon.png
-icon.filename = %(source.dir)s/data/images/icons/48x48/pysol.png
+icon.filename = %(source.dir)s/data/images/icons/512x512/pysol.png
 
 # (str) Supported orientation (one of landscape, sensorLandscape, portrait or all)
 orientation = portrait, landscape
