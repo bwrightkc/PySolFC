@@ -1878,6 +1878,9 @@ class LApp(App):
         logging.info('top = %s', str(self.baseWindow))
 
         self.mainWindow = LMainWindow()
+        from pysollib.kivy.iossafearea import IosSafeArea
+        safe_area = IosSafeArea()
+        self.mainWindow.padding = [0, safe_area.top, 0, safe_area.bottom]
         Cache.register('LAppCache', limit=10)
         Cache.append('LAppCache', 'baseWindow', self.baseWindow, timeout=0)
         Cache.append('LAppCache', 'mainWindow', self.mainWindow, timeout=0)

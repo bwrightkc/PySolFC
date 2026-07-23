@@ -1,0 +1,92 @@
+name: iOS unsigned IPA
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+
+    env:
+      # kivy-ios master tracks Kivy's own master branch, which currently
+      # requires Python 3.13 (platform.ios_ver()) that kivy-ios's embedded
+      # iOS Python (3.11) doesn't have. Pin to a known-good commit and pin
+      # the Kivy recipe to a released SDL2-based version instead.
+      KIVY_IOS_COMMIT: c14426b4f05d51774a0c8a45727a6ec27fba3b60
+      KIVY_PIN_VERSION: 2.3.1
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+
+    - name: "Set up python (with tkinter, needed by scripts/all_games.py)"
+      env:
+        PYVER: '3.11.9'
+        PYVER_SHORT: '3.11'
+      run: |
+        wget -O python.pkg "https://www.python.org/ftp/python/${PYVER}/python-${PYVER}-macos11.pkg"
+        sudo installer -pkg python.pkg -target /
+        echo "/Library/Frameworks/Python.framework/Versions/${PYVER_SHORT}/bin" >> $GITHUB_PATH
+
+    - name: Prepare staged app source (buildozer/tmp)
+      working-directory: buildozer
+      run: ./buildozer.init
+
+    - name: Create build virtualenv
+      working-directory: buildozer
+      run: |
+        python3 -m venv ENV
+        source ENV/bin/activate
+        pip install --upgrade pip
+        pip install -r pipreq.txt
+
+    - name: Cache kivy-ios toolchain (clone + build output as one unit)
+      uses: actions/cache@v4
+      with:
+        path: buildozer/.buildozer/ios/platform/kivy-ios
+        key: kivy-ios-${{ env.KIVY_IOS_COMMIT }}-${{ env.KIVY_PIN_VERSION }}-${{ hashFiles('buildozer/buildozer.spec') }}
+
+    - name: Pre-clone kivy-ios (pinned commit) and pin Kivy to an SDL2 release
+      working-directory: buildozer
+      run: |
+        set -euo pipefail
+        DIR=".buildozer/ios/platform/kivy-ios"
+        # toolchain.py (not just the dir) confirms a real cache hit, since
+        # the cache path itself gets recreated by tar extraction either way
+        if [ ! -f "$DIR/toolchain.py" ]; then
+          rm -rf "$DIR"
+          mkdir -p .buildozer/ios/platform
+          git clone https://github.com/kivy/kivy-ios "$DIR"
+          git -C "$DIR" checkout "$KIVY_IOS_COMMIT"
+        fi
+        RECIPE="$DIR/kivy_ios/recipes/kivy/__init__.py"
+        sed -i '' "s/version = \"master\"/version = \"$KIVY_PIN_VERSION\"/" "$RECIPE"
+        grep -q "version = \"$KIVY_PIN_VERSION\"" "$RECIPE"
+
+    - name: Build unsigned iOS archive
+      working-directory: buildozer
+      run: |
+        source ENV/bin/activate
+        ./ios.run debug
+
+    - name: Package unsigned IPA
+      working-directory: buildozer
+      run: |
+        set -euo pipefail
+        APP_DIR=".buildozer/ios/platform/kivy-ios/pysolfc-ios/build/Debug-iphoneos/pysolfc.app"
+        test -d "$APP_DIR"
+        mkdir -p ipa_root/Payload
+        cp -R "$APP_DIR" ipa_root/Payload/
+        (cd ipa_root && zip -qr ../pysolfc-unsigned.ipa Payload)
+
+    - name: Upload unsigned IPA
+      uses: actions/upload-artifact@v7
+      with:
+        name: pysolfc-unsigned-ipa
+        path: buildozer/pysolfc-unsigned.ipa
