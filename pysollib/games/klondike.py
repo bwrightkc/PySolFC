@@ -21,8 +21,6 @@
 #
 # ---------------------------------------------------------------------------##
 
-import random as py_random
-
 import pysollib.game
 from pysollib.game import Game
 from pysollib.gamedb import GI, GameInfo, registerGame
@@ -117,7 +115,7 @@ class KlondikeAlwaysSolvable(Klondike):
     # seeds (e.g. "enter game number") alone
     def createRandom(self, random):
         if random is None and SOLVABLE_SEEDS:
-            seed = py_random.choice(SOLVABLE_SEEDS)
+            seed = self.app.gamerandom.choice(SOLVABLE_SEEDS)
             random = construct_random(str(seed))
         Game.createRandom(self, random)
 
