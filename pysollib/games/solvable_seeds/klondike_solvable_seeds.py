@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 # -*- mode: python; coding: utf-8; -*-
 #
-# Klondike seeds confirmed solvable, used by KlondikeAlwaysSolvable in
-# klondike.py. Made with the seed generator script -- run it again
-# with a fresh --start-seed to add more.
+# Klondike seeds confirmed solvable, used by KlondikeAlwaysSolvable
+# in klondike.py. Made with the seed generator script -- run it
+# again with a fresh --start-seed to add more.
 #
 # Must all be >= 32000, or they'd deal a different game than what
 # was actually solved (see construct_random() in pysolrandom.py).
 #
-# 79606 seeds, covering 32000-54208, 54401-110022, 200002-211079.
+# 79651 seeds, covering 32000-54208, 54401-110022, 200002-211129.
 
 SOLVABLE_SEEDS = (
     32000, 32001, 32002, 32003, 32004, 32005, 32006, 32009,
@@ -9961,5 +9961,11 @@ SOLVABLE_SEEDS = (
     211047, 211048, 211049, 211050, 211051, 211053, 211054, 211055,
     211056, 211057, 211058, 211059, 211060, 211061, 211063, 211064,
     211065, 211066, 211067, 211068, 211069, 211070, 211071, 211072,
-    211073, 211074, 211075, 211077, 211078, 211079,
+    211073, 211074, 211075, 211077, 211078, 211079, 211080, 211081,
+    211083, 211084, 211085, 211086, 211087, 211088, 211089, 211090,
+    211091, 211092, 211093, 211094, 211095, 211096, 211097, 211098,
+    211099, 211100, 211101, 211102, 211103, 211104, 211105, 211106,
+    211107, 211108, 211110, 211111, 211112, 211113, 211114, 211115,
+    211116, 211118, 211119, 211120, 211121, 211123, 211124, 211125,
+    211126, 211127, 211129,
 )
