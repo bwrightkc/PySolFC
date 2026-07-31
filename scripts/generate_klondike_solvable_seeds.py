@@ -21,6 +21,7 @@
 import argparse
 import re
 import subprocess
+import time
 from pathlib import Path
 
 from pysol_cards.deal_game import Game
@@ -217,6 +218,11 @@ def format_difficulty_file(difficulty):
     return "\n".join(lines)
 
 
+# A long run (e.g. a 90k-seed gap) can take days -- checkpoint often
+# enough that a sleep/reboot/Ctrl+C doesn't lose it all.
+CHECKPOINT_SECONDS = 300
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--solver", required=True,
@@ -232,36 +238,49 @@ def main():
     attempted_ranges = load_attempted_ranges()
     difficulty = load_existing_difficulty()
 
-    seed = attempt_start = max(args.start_seed, 32000)
+    attempt_start = max(args.start_seed, 32000)
+    seed = attempt_start
     tried = 0
     new_solvable = 0
-    while tried < args.count:
-        if seed not in existing:
-            tried += 1
-            states = solve_seed(args.solver, seed, args.max_states)
-            if states is not None:
-                found.add(seed)
-                difficulty[seed] = states
-                new_solvable += 1
-                print(f"{seed}: solvable, {states} states "
-                      f"({new_solvable} new so far)")
-            else:
-                print(f"{seed}: no solution / gave up")
-        seed += 1
-    attempt_end = seed - 1
+    last_checkpoint = time.monotonic()
 
-    if tried:
-        attempted_ranges = merge_ranges(
-            attempted_ranges + [(attempt_start, attempt_end)])
+    def checkpoint(up_to_seed):
+        ranges = attempted_ranges
+        if tried:
+            ranges = merge_ranges(ranges + [(attempt_start, up_to_seed)])
+        SEEDS_FILE.write_text(
+            format_seeds_file(found, ranges), encoding="utf-8")
+        DIFFICULTY_FILE.write_text(
+            format_difficulty_file(difficulty), encoding="utf-8")
+        print(f"--- checkpoint: {len(found)} seeds total "
+              f"({new_solvable} new), {len(difficulty)} with difficulty "
+              f"data, attempted through {up_to_seed} ---")
 
-    SEEDS_FILE.write_text(
-        format_seeds_file(found, attempted_ranges), encoding="utf-8")
-    print(f"Wrote {len(found)} seeds ({new_solvable} new) to {SEEDS_FILE}")
-
-    DIFFICULTY_FILE.write_text(
-        format_difficulty_file(difficulty), encoding="utf-8")
-    print(f"Wrote difficulty data for {len(difficulty)} seeds to "
-          f"{DIFFICULTY_FILE}")
+    try:
+        while tried < args.count:
+            if seed not in existing:
+                tried += 1
+                states = solve_seed(args.solver, seed, args.max_states)
+                if states is not None:
+                    found.add(seed)
+                    difficulty[seed] = states
+                    new_solvable += 1
+                    print(f"{seed}: solvable, {states} states "
+                          f"({new_solvable} new so far)")
+                else:
+                    print(f"{seed}: no solution / gave up")
+            seed += 1
+            if time.monotonic() - last_checkpoint > CHECKPOINT_SECONDS:
+                checkpoint(seed - 1)
+                last_checkpoint = time.monotonic()
+    except KeyboardInterrupt:
+        print("\nInterrupted -- saving progress before exit.")
+    finally:
+        checkpoint(seed - 1)
+        print(f"Wrote {len(found)} seeds ({new_solvable} new) to "
+              f"{SEEDS_FILE}")
+        print(f"Wrote difficulty data for {len(difficulty)} seeds to "
+              f"{DIFFICULTY_FILE}")
 
 
 if __name__ == "__main__":
