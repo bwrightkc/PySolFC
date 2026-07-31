@@ -30,6 +30,10 @@ SEEDS_FILE = (
     Path(__file__).resolve().parent.parent
     / "pysollib" / "games" / "solvable_seeds" / "klondike_solvable_seeds.py"
 )
+DIFFICULTY_FILE = (
+    Path(__file__).resolve().parent.parent
+    / "pysollib" / "games" / "solvable_seeds" / "klondike_seed_difficulty.py"
+)
 
 
 def load_existing_seeds():
@@ -56,6 +60,14 @@ def load_attempted_ranges():
         else:
             ranges.append((int(part), int(part)))
     return ranges
+
+
+def load_existing_difficulty():
+    if not DIFFICULTY_FILE.exists():
+        return {}
+    ns = {}
+    exec(DIFFICULTY_FILE.read_text(encoding="utf-8"), ns)
+    return dict(ns["SEED_STATES"])
 
 
 def merge_ranges(ranges):
@@ -98,7 +110,13 @@ def board_text(seed):
     return "\n".join(lines)
 
 
-def is_solvable(solver_path, seed, max_states):
+STATES_RE = re.compile(r"States:\s*(\d+)")
+
+
+def solve_seed(solver_path, seed, max_states):
+    # Returns the solver's states-explored count if solvable, else None.
+    # States-explored is a reasonable, free difficulty proxy: harder boards
+    # force the search to branch/backtrack more before it finds a solution.
     text = board_text(seed)
     try:
         proc = subprocess.run(
@@ -110,8 +128,11 @@ def is_solvable(solver_path, seed, max_states):
             timeout=60,
         )
     except subprocess.TimeoutExpired:
-        return False
-    return "Solved" in proc.stdout
+        return None
+    if "Solved" not in proc.stdout:
+        return None
+    m = STATES_RE.search(proc.stdout)
+    return int(m.group(1)) if m else None
 
 
 def format_seeds_file(seeds, attempted_ranges):
@@ -143,6 +164,59 @@ def format_seeds_file(seeds, attempted_ranges):
     return "\n".join(lines)
 
 
+def tier_seeds(difficulty):
+    # Split into rough thirds by states-explored. Needs at least a handful
+    # of data points per tier to mean anything.
+    if len(difficulty) < 3:
+        return {}, {}, {}
+    ordered = sorted(difficulty.items(), key=lambda kv: kv[1])
+    n = len(ordered)
+    easy_cut = n // 3
+    hard_cut = 2 * n // 3
+    easy = dict(ordered[:easy_cut])
+    medium = dict(ordered[easy_cut:hard_cut])
+    hard = dict(ordered[hard_cut:])
+    return easy, medium, hard
+
+
+def format_difficulty_file(difficulty):
+    states = sorted(difficulty.items())
+    easy, medium, hard = tier_seeds(difficulty)
+
+    lines = [
+        "#!/usr/bin/env python",
+        "# -*- mode: python; coding: utf-8; -*-",
+        "#",
+        "# Difficulty data for the KlondikeAlwaysSolvable seed pool in",
+        "# klondike_solvable_seeds.py, made by the same seed generator",
+        "# script. SEED_STATES maps seed -> states the solver explored to",
+        "# find a solution (--fast mode) -- a free difficulty proxy: harder",
+        "# boards force the search to branch/backtrack more.",
+        "#",
+        "# Only covers seeds actually run through klondike-solver-test;",
+        "# seeds from the original ShootMe-generated pool have no stats and",
+        "# are absent here, even though they're still in SOLVABLE_SEEDS.",
+        "#",
+        f"# {len(states)} seeds with known difficulty, split into rough",
+        "# thirds by states-explored -- EASY/MEDIUM/HARD_SEEDS below.",
+        "",
+        "SEED_STATES = {",
+    ]
+    for seed, n in states:
+        lines.append(f"    {seed}: {n},")
+    lines.append("}")
+    lines.append("")
+    for name, bucket in (("EASY", easy), ("MEDIUM", medium), ("HARD", hard)):
+        seeds = sorted(bucket)
+        lines.append(f"{name}_SEEDS = (")
+        for i in range(0, len(seeds), 8):
+            chunk = seeds[i:i + 8]
+            lines.append("    " + ", ".join(str(s) for s in chunk) + ",")
+        lines.append(")")
+        lines.append("")
+    return "\n".join(lines)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--solver", required=True,
@@ -156,6 +230,7 @@ def main():
     existing = set(load_existing_seeds())
     found = set(existing)
     attempted_ranges = load_attempted_ranges()
+    difficulty = load_existing_difficulty()
 
     seed = attempt_start = max(args.start_seed, 32000)
     tried = 0
@@ -163,10 +238,13 @@ def main():
     while tried < args.count:
         if seed not in existing:
             tried += 1
-            if is_solvable(args.solver, seed, args.max_states):
+            states = solve_seed(args.solver, seed, args.max_states)
+            if states is not None:
                 found.add(seed)
+                difficulty[seed] = states
                 new_solvable += 1
-                print(f"{seed}: solvable ({new_solvable} new so far)")
+                print(f"{seed}: solvable, {states} states "
+                      f"({new_solvable} new so far)")
             else:
                 print(f"{seed}: no solution / gave up")
         seed += 1
@@ -179,6 +257,11 @@ def main():
     SEEDS_FILE.write_text(
         format_seeds_file(found, attempted_ranges), encoding="utf-8")
     print(f"Wrote {len(found)} seeds ({new_solvable} new) to {SEEDS_FILE}")
+
+    DIFFICULTY_FILE.write_text(
+        format_difficulty_file(difficulty), encoding="utf-8")
+    print(f"Wrote difficulty data for {len(difficulty)} seeds to "
+          f"{DIFFICULTY_FILE}")
 
 
 if __name__ == "__main__":
