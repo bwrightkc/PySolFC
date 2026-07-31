@@ -242,6 +242,7 @@ def main():
     seed = attempt_start
     tried = 0
     new_solvable = 0
+    backfilled = 0
     last_checkpoint = time.monotonic()
 
     def checkpoint(up_to_seed):
@@ -253,20 +254,35 @@ def main():
         DIFFICULTY_FILE.write_text(
             format_difficulty_file(difficulty), encoding="utf-8")
         print(f"--- checkpoint: {len(found)} seeds total "
-              f"({new_solvable} new), {len(difficulty)} with difficulty "
-              f"data, attempted through {up_to_seed} ---")
+              f"({new_solvable} new, {backfilled} backfilled), "
+              f"{len(difficulty)} with difficulty data, "
+              f"attempted through {up_to_seed} ---")
 
     try:
         while tried < args.count:
-            if seed not in existing:
+            # Seeds already in the pool but from the old ShootMe-era
+            # generator have no difficulty data (no states-explored
+            # number) -- re-solve those too, just to backfill it.
+            already_solvable = seed in existing
+            if not already_solvable or seed not in difficulty:
                 tried += 1
                 states = solve_seed(args.solver, seed, args.max_states)
                 if states is not None:
                     found.add(seed)
                     difficulty[seed] = states
-                    new_solvable += 1
-                    print(f"{seed}: solvable, {states} states "
-                          f"({new_solvable} new so far)")
+                    if already_solvable:
+                        backfilled += 1
+                        print(f"{seed}: backfilled, {states} states "
+                              f"({backfilled} backfilled so far)")
+                    else:
+                        new_solvable += 1
+                        print(f"{seed}: solvable, {states} states "
+                              f"({new_solvable} new so far)")
+                elif already_solvable:
+                    print(f"{seed}: WARNING -- previously confirmed "
+                          f"solvable but the solver couldn't reconfirm "
+                          f"it now; kept in the pool, difficulty left "
+                          f"unscored")
                 else:
                     print(f"{seed}: no solution / gave up")
             seed += 1
@@ -279,8 +295,8 @@ def main():
         checkpoint(seed - 1)
         print(f"Wrote {len(found)} seeds ({new_solvable} new) to "
               f"{SEEDS_FILE}")
-        print(f"Wrote difficulty data for {len(difficulty)} seeds to "
-              f"{DIFFICULTY_FILE}")
+        print(f"Wrote difficulty data for {len(difficulty)} seeds "
+              f"({backfilled} backfilled) to {DIFFICULTY_FILE}")
 
 
 if __name__ == "__main__":
