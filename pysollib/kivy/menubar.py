@@ -383,6 +383,8 @@ class EditMenuDialog(LMenuDialog):  # Tools
             text=_('New game'), command=self.menubar.mNewGame))
         tv.add_node(LTreeNode(
             text=_('Restart game'), command=self.menubar.mRestart))
+        tv.add_node(LTreeNode(
+            text=_('Replay'), command=self.auto_close(self.menubar.mReplay)))
 
         tv.add_node(LTreeNode(
             text=_('Undo'), command=self.menubar.mUndo))
@@ -640,7 +642,7 @@ class LOptionsMenuGenerator(LTreeGenerator):
                               self.menubar.mOptEnableHighlightCards)
 
             self.addCheckNode(tv, rg,
-                              _('Enable highlight same rank'),
+                              _('Enable highlight same rank/suit'),
                               self.menubar.tkopt.highlight_samerank,
                               self.menubar.mOptEnableHighlightSameRank)
 
