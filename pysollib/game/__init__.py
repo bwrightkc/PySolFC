@@ -881,6 +881,10 @@ class Game:
         if autoplay:
             self.autoPlay()
             self.stats.player_moves = 0
+        # Opening layout can already be dead (Yukon shuffles that never
+        # reach a drop or a flip). Check before the player has to move.
+        if not self.preview:
+            self.updateStuck()
         self.setCursor(cursor=self.app.top_cursor)
         self.stats.update_time = time.time()
         if not self.preview:
@@ -3133,17 +3137,21 @@ class Game:
                 am.to_stack_id == waste.id)
 
     def _showReplayHint(self):
-        """Show a demo-style hint arrow before the next replayed move.
+        """Pause before the next replay move, with a hint arrow when useful.
 
-        Prefer the first *animated* stack-to-stack move (frames != 0). Instant
-        helper moves (frames=0), talon deals, and flips get no arrow — same as
-        demo, and required for games like Match Three where a swap is stored as
-        several atomic moves (invisible swap helpers + cascade fills).
+        Prefer the first animated stack-to-stack move (frames != 0). Instant
+        helper moves (frames=0) are skipped so games like Match Three show the
+        visible swap, not the cascade. Talon deals stay quick (no pause).
+
+        Steps with no arrow, like flips (Lights Out) and instant slides
+        (Matrix), still sleep so the replay is watchable when the game has no
+        demo.
         """
         demo = self.demo
         if not demo or demo.sleep <= 0:
             return
-        for am in self.moves.history[self.moves.index]:
+        step = self.moves.history[self.moves.index]
+        for am in step:
             if isinstance(am, (AMoveMove, AFlipAndMoveMove)):
                 if getattr(am, 'frames', -1) == 0:
                     continue
@@ -3154,11 +3162,10 @@ class Game:
                 ncards = am.ncards if isinstance(am, AMoveMove) else 1
                 self.drawHintArrow(from_stack, to_stack, ncards, demo.sleep)
                 return
-            # Flip/redeal with no prior animated move: no arrow
-            # (same as showHint)
-            if isinstance(am, (AFlipMove, ASingleFlipMove, AFlipAllMove,
-                               ATurnStackMove, ANextRoundMove)):
-                return
+        # No arrow. Still pause, except for a quick talon deal.
+        if any(self._isTalonDealAtomic(am) for am in step):
+            return
+        self.sleep(demo.sleep)
 
     # demo event - play one demo move and check for win/loss
     def demoEvent(self):

@@ -1273,7 +1273,7 @@ class TheBogey_Talon(TalonStack):
     def canDealCards(self):
         return (len(self.game.s.reserves[0].cards) < 1 and
                 (len(self.cards) > 0 or
-                 len(self.game.s.reserves[0].cards) > 0))
+                 len(self.game.s.reserves[1].cards) > 0))
 
     def dealCards(self, sound=False):
         if len(self.cards) < 1:
@@ -1446,7 +1446,8 @@ registerGame(GameInfo(257, Numerica, "Numerica",
 registerGame(GameInfo(171, LadyBetty, "Lady Betty",
                       GI.GT_NUMERICA, 1, 0, GI.SL_BALANCED))
 registerGame(GameInfo(355, Frog, "Frog",
-                      GI.GT_NUMERICA, 2, 0, GI.SL_BALANCED))
+                      GI.GT_NUMERICA, 2, 0, GI.SL_BALANCED,
+                      altnames=("Bullfrog")))
 registerGame(GameInfo(356, Fly, "Fly",
                       GI.GT_NUMERICA, 2, 0, GI.SL_BALANCED))
 registerGame(GameInfo(357, Gnat, "Gnat",
