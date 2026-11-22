@@ -40,3 +40,11 @@ buildozer/ENV
 buildozer/VENV
 venv*
 local-comments
+.DS_Store
+.github/.DS_Store
+buildozer/.DS_Store
+data/.DS_Store
+html-src/.DS_Store
+locale/.DS_Store
+pysollib/.DS_Store
+tests/.DS_Store
